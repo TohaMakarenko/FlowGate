@@ -1,6 +1,8 @@
 package main
 
-import "context"
+import (
+	"context"
+)
 
 func main() {
 	var queue IMessageQueue = NewKafkaMessageQueue()
@@ -9,5 +11,5 @@ func main() {
 
 	ctx := context.Background()
 	go queue.Start(ctx)
-	go dispatcher.Start(ctx, queue.GetMessagesChannel())
+	dispatcher.Start(ctx, queue.GetMessagesChannel())
 }

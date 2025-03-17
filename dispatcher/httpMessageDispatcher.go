@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"net/http"
@@ -23,11 +24,18 @@ func (dispatcher *HttpMessageDispatcher) Start(ctx context.Context, msgChanel ch
 	for message := range msgChanel {
 		config, ok := dispatcher.configRepo.Get(message.eventType)
 		if !ok {
-			log.Printf("failed to get config for %v", message.eventType)
+			log.Printf("config for %v not found", message.eventType)
 		}
-		_, err := http.Post(config.targetEndpoint, "application/json", nil)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, config.targetEndpoint, bytes.NewReader(message.body))
 		if err != nil {
-			log.Printf("failed dispatching message %v", message.eventType)
+			log.Printf("failed creating request for message %v. Error: %v", message.eventType, err)
+		}
+
+		_, err = http.DefaultClient.Do(req)
+
+		if err != nil {
+			log.Printf("failed dispatching message %v. Error: %v", message.eventType, err)
 		} else {
 			log.Printf("message %v dispatched", message.eventType)
 		}
