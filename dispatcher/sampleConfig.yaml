@@ -1,0 +1,4 @@
+﻿pingSample:
+  targetEndpoint: "localhost:5555/pingSample"
+  staticParams:
+    sampleKey: "sampleValue"
