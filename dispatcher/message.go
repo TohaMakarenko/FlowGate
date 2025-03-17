@@ -1,4 +1,4 @@
-package dispatcher
+package main
 
 type Message struct {
 	eventType string

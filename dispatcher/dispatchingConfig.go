@@ -1,4 +1,4 @@
-package dispatcher
+package main
 
 type DispatchingConfig struct {
 	eventType      string

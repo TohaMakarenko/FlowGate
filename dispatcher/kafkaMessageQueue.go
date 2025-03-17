@@ -1,4 +1,4 @@
-package dispatcher
+package main
 
 import (
 	"context"
@@ -19,7 +19,7 @@ func NewKafkaMessageQueue() *KafkaMessageQueue {
 }
 
 func (queue *KafkaMessageQueue) GetMessagesChannel() chan *Message {
-	panic("implement me")
+	return queue.messagesChannel
 }
 
 func (queue *KafkaMessageQueue) Start(ctx context.Context) {
