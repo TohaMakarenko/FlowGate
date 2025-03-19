@@ -3,22 +3,22 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/TohaMakarenko/FlowGate/dispatcher/shared"
 	"github.com/segmentio/kafka-go"
 	"log"
 )
 
 type KafkaMessageQueue struct {
 	connection      *kafka.Conn
-	messagesChannel chan *Message
+	messagesChannel chan *shared.Message
 }
 
 func NewKafkaMessageQueue() *KafkaMessageQueue {
-	queue := &KafkaMessageQueue{messagesChannel: make(chan *Message)}
+	queue := &KafkaMessageQueue{messagesChannel: make(chan *shared.Message)}
 	return queue
 }
 
-func (queue *KafkaMessageQueue) GetMessagesChannel() chan *Message {
+func (queue *KafkaMessageQueue) GetMessagesChannel() chan *shared.Message {
 	return queue.messagesChannel
 }
 
@@ -27,6 +27,7 @@ func (queue *KafkaMessageQueue) Start(ctx context.Context) {
 	// make a new reader that consumes from topic-A, partition 0, at offset 42
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:   []string{"localhost:9092"},
+		GroupID:   "dispatcher",
 		Topic:     topic,
 		Partition: 0,
 		MaxBytes:  100e6, // 100MB
@@ -42,16 +43,20 @@ func (queue *KafkaMessageQueue) Start(ctx context.Context) {
 
 	defer close(queue.messagesChannel)
 	for {
-		m, err := reader.ReadMessage(ctx)
+		msg, err := reader.FetchMessage(ctx)
 		if err != nil {
 			log.Fatal("failed reading message from kafka: ", err)
 		}
-		var message *Message = &Message{}
-		if err = json.Unmarshal(m.Value, message); err != nil {
-			log.Printf("failed to unmarshal message at offset %d, key %v. Error: %v", m.Offset, string(m.Key), err)
+		var message *shared.Message = &shared.Message{}
+		if err = json.Unmarshal(msg.Value, message); err != nil {
+			log.Printf("failed to unmarshal message at offset %d, key %v. Error: %v", msg.Offset, string(msg.Key), err)
 			continue
 		}
 		queue.messagesChannel <- message
-		fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
+		if err = reader.CommitMessages(ctx, msg); err != nil {
+			log.Printf("Error committing message: %v", err)
+		} else {
+			log.Printf("message commited at offset %d: %s = %s\n", msg.Offset, string(msg.Key), string(msg.Value))
+		}
 	}
 }

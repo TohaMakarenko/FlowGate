@@ -11,8 +11,8 @@ type FileDispatchingConfigRepository struct {
 }
 
 type yamlDispatchingConfig struct {
-	targetEndpoint string
-	staticParams   map[string]string
+	TargetEndpoint string            `yaml:"targetEndpoint"`
+	StaticParams   map[string]string `yaml:"staticParams"`
 }
 
 func NewFileDispatchingConfigRepository() *FileDispatchingConfigRepository {
@@ -21,8 +21,8 @@ func NewFileDispatchingConfigRepository() *FileDispatchingConfigRepository {
 	for key, config := range configs {
 		repo.config[key] = DispatchingConfig{
 			eventType:      key,
-			targetEndpoint: config.targetEndpoint,
-			staticParams:   config.staticParams,
+			targetEndpoint: config.TargetEndpoint,
+			staticParams:   config.StaticParams,
 		}
 	}
 

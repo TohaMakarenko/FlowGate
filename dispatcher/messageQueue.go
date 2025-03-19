@@ -1,8 +1,11 @@
 package main
 
-import "context"
+import (
+	"context"
+	"github.com/TohaMakarenko/FlowGate/dispatcher/shared"
+)
 
 type IMessageQueue interface {
 	Start(ctx context.Context)
-	GetMessagesChannel() chan *Message
+	GetMessagesChannel() chan *shared.Message
 }

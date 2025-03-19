@@ -1,7 +1,10 @@
 package main
 
-import "context"
+import (
+	"context"
+	"github.com/TohaMakarenko/FlowGate/dispatcher/shared"
+)
 
 type IMessageDispatcher interface {
-	Start(ctx context.Context, msgChanel chan *Message)
+	Start(ctx context.Context, msgChanel chan *shared.Message)
 }
