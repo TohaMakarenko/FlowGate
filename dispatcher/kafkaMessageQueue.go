@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/TohaMakarenko/FlowGate/dispatcher/shared"
+	"github.com/TohaMakarenko/FlowGate/shared"
 	"github.com/segmentio/kafka-go"
 	"log"
 )

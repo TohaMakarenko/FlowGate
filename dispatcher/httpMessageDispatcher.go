@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"github.com/TohaMakarenko/FlowGate/dispatcher/shared"
+	"github.com/TohaMakarenko/FlowGate/shared"
 	"log"
 	"net/http"
 )

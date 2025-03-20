@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/TohaMakarenko/FlowGate/dispatcher/shared"
+	"github.com/TohaMakarenko/FlowGate/shared"
 )
 
 type IMessageDispatcher interface {
