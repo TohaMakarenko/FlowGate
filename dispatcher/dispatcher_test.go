@@ -12,8 +12,6 @@ import (
 )
 
 func TestProcess(t *testing.T) {
-	const topic string = "topic-A"
-
 	const msgCount int = 10
 	waitChan := make(chan bool, 10)
 	ctx, cancelCtx := context.WithTimeout(context.Background(), 30*time.Second)
@@ -26,18 +24,20 @@ func TestProcess(t *testing.T) {
 	go func() {
 		err := srv.ListenAndServe()
 		if err != nil {
-			t.Error("Unable to start http server: ", err)
 			waitChan <- false
+			t.Error("Unable to start http server: ", err)
 		}
 	}()
 
 	writer := kafka.Writer{
-		Addr:         kafka.TCP("localhost:9092"),
-		Topic:        "topic-A",
-		Balancer:     &kafka.LeastBytes{},
-		RequiredAcks: kafka.RequireNone,
+		Addr:                   kafka.TCP("localhost:9092"),
+		Topic:                  "main-events",
+		Balancer:               &kafka.LeastBytes{},
+		RequiredAcks:           kafka.RequireNone,
+		AllowAutoTopicCreation: true,
 	}
 
+	messages := make([]kafka.Message, msgCount)
 	for i := 0; i < msgCount; i++ {
 		msg := shared.Message{
 			EventType: "foo",
@@ -48,11 +48,13 @@ func TestProcess(t *testing.T) {
 		kMsg := kafka.Message{
 			Value: val,
 		}
-		err := writer.WriteMessages(ctx, kMsg)
-		log.Printf("Pushed %v message", i)
-		if err != nil {
-			t.Error("failed sending kafka message: ", err)
-		}
+		messages[i] = kMsg
+	}
+
+	err := writer.WriteMessages(ctx, messages...)
+	log.Print("Messages pushed")
+	if err != nil {
+		t.Fatal("failed sending kafka message: ", err)
 	}
 
 	writer.Close()
@@ -60,12 +62,10 @@ func TestProcess(t *testing.T) {
 	for i := 0; i < msgCount; i++ {
 		select {
 		case <-ctx.Done():
-			t.Error("Timeout")
-			break
+			t.Fatal("Timeout")
 		case res := <-waitChan:
 			if !res {
-				t.Error("failed listening")
-				break
+				t.Fatal("failed listening")
 			}
 		}
 	}
