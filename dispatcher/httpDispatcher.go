@@ -120,7 +120,7 @@ func (dispatcher *HttpMessageDispatcher) sendMessageHttp(ctx context.Context, ms
 
 	result = &MessageResult{
 		MessageId:  msg.Id,
-		ResultCode: resp.StatusCode,
+		ResultCode: uint16(resp.StatusCode),
 	}
 	result.ResponseBody, _ = io.ReadAll(resp.Body)
 	log.Printf("msg %v dispatched", msg.EventType)

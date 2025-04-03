@@ -5,16 +5,14 @@ import (
 )
 
 func main() {
-	var queue IMessageQueue = NewKafkaMessageQueue()
+	queue := NewKafkaMessageQueue()
 	defer queue.Close()
 	var configRepo IDispatchingConfigRepository = NewFileDispatchingConfigRepository()
-	var msgRepo IMessageRepository
-	var ok bool
-	msgRepo, ok = NewClickHouseRepository()
+	msgRepo, ok := NewClickHouseRepository()
 	if !ok {
 		return
 	}
-	var dispatcher IMessageDispatcher = NewHttpMessageDispatcher(queue, configRepo, msgRepo)
+	var dispatcher = NewHttpMessageDispatcher(queue, configRepo, msgRepo)
 	defer dispatcher.Close()
 
 	if ok {

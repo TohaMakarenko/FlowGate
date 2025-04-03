@@ -24,14 +24,14 @@ func NewClickHouseRepository() (repo *ClickHouseRepository, ok bool) {
 	return repo, true
 }
 
-func (repo ClickHouseRepository) Close() {
+func (repo *ClickHouseRepository) Close() {
 	err := repo.conn.Close()
 	if err != nil {
 		log.Printf("Failed closing ClickHouse connection")
 	}
 }
 
-func (repo ClickHouseRepository) SaveMessages(ctx context.Context, messages []*shared.Message) bool {
+func (repo *ClickHouseRepository) SaveMessages(ctx context.Context, messages []*shared.Message) bool {
 	batch, err := repo.conn.PrepareBatch(ctx, "INSERT INTO messages (Id, EventType, Body, ApiToken, CreatedAt)")
 	if err != nil {
 		log.Printf("Failed prepearing messages batch for ClickHouse. %v", err)
@@ -59,7 +59,7 @@ func (repo ClickHouseRepository) SaveMessages(ctx context.Context, messages []*s
 	return true
 }
 
-func (repo ClickHouseRepository) SaveMessageResult(ctx context.Context, msgResult *MessageResult) bool {
+func (repo *ClickHouseRepository) SaveMessageResult(ctx context.Context, msgResult *MessageResult) bool {
 	batch, err := repo.conn.PrepareBatch(ctx, "INSERT INTO message_results (MessageId, ResultCode, ResponseBody, Error, CreatedAt)")
 	if err != nil {
 		log.Printf("Failed prepearing message result batch for ClickHouse. %v", err)
@@ -88,7 +88,7 @@ func (repo ClickHouseRepository) SaveMessageResult(ctx context.Context, msgResul
 
 func connectToClickHouse() (conn driver.Conn, ok bool) {
 	conn, err := clickhouse.Open(&clickhouse.Options{
-		Addr: []string{"localhost:18123"},
+		Addr: []string{"localhost:9000"},
 		Auth: clickhouse.Auth{
 			Database: "default",
 			Username: "default",
@@ -112,7 +112,7 @@ func connectToClickHouse() (conn driver.Conn, ok bool) {
 	ctx := context.Background()
 
 	if err := conn.Ping(ctx); err != nil {
-		log.Fatalf("Failed to connect to ClickHouse: %v", err)
+		log.Fatalf("Failed to ping ClickHouse: %v", err)
 		return nil, false
 	}
 	fmt.Println("Connected to ClickHouse successfully!")
@@ -142,7 +142,7 @@ func createTables(err error, conn driver.Conn, ctx context.Context) error {
 	query = `
 	CREATE TABLE IF NOT EXISTS message_results (
 		MessageId String,
-		ResultCode Int32,
+		ResultCode UInt16,
 		ResponseBody String,
 		Error String,
 		CreatedAt DateTime DEFAULT now()
