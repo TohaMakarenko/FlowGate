@@ -36,6 +36,11 @@ func (dispatcher *HttpMessageDispatcher) Start(ctx context.Context) {
 		if !ok {
 			break
 		}
+		ok = dispatcher.msgRepo.SaveMessages(ctx, messages)
+		if !ok {
+			dispatcher.queue.AddMessagesToRetry(messages)
+			continue
+		}
 		wg := sync.WaitGroup{}
 		wg.Add(len(messages))
 		for _, msg := range messages {
@@ -46,7 +51,7 @@ func (dispatcher *HttpMessageDispatcher) Start(ctx context.Context) {
 					wg.Done()
 					throttler <- struct{}{}
 				}()
-				dispatcher.handleMessage(timeoutCtx, &msg)
+				dispatcher.handleMessage(timeoutCtx, msg)
 			}()
 			<-throttler
 		}
@@ -56,7 +61,10 @@ func (dispatcher *HttpMessageDispatcher) Start(ctx context.Context) {
 	log.Print("done dispatching messages")
 }
 
-func (dispatcher *HttpMessageDispatcher) getMessagesWithRetry(ctx context.Context) (messages []shared.Message, ok bool) {
+func (dispatcher *HttpMessageDispatcher) Close() {
+}
+
+func (dispatcher *HttpMessageDispatcher) getMessagesWithRetry(ctx context.Context) (messages []*shared.Message, ok bool) {
 	const maxBatch int = 100
 	const maxAttempts int = 10
 	retryAttempts := 0
@@ -79,17 +87,12 @@ func (dispatcher *HttpMessageDispatcher) getMessagesWithRetry(ctx context.Contex
 }
 
 func (dispatcher *HttpMessageDispatcher) handleMessage(ctx context.Context, msg *shared.Message) {
-	ok := dispatcher.msgRepo.SaveMessage(msg)
-	if !ok {
-		dispatcher.queue.AddMessageToRetry(msg)
-		return
-	}
 	result, ok := dispatcher.sendMessageHttp(ctx, msg)
 	if result != nil {
-		dispatcher.msgRepo.SaveMessageResult(result)
+		dispatcher.msgRepo.SaveMessageResult(ctx, result)
 	}
 	if !ok {
-		dispatcher.queue.AddMessageToRetry(msg)
+		dispatcher.queue.AddMessagesToRetry([]*shared.Message{msg})
 		return
 	}
 

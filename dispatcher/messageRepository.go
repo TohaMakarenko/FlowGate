@@ -5,7 +5,7 @@ import "github.com/TohaMakarenko/FlowGate/shared"
 type MessageRepository struct {
 }
 
-func (m MessageRepository) SaveMessage(msg *shared.Message) bool {
+func (m MessageRepository) SaveMessages(msg *shared.Message) bool {
 	return true
 }
 

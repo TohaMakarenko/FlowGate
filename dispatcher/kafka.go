@@ -43,7 +43,7 @@ func NewKafkaMessageQueue() *KafkaMessageQueue {
 	return queue
 }
 
-func (queue *KafkaMessageQueue) GetMessagesBatch(ctx context.Context, size int) (messages []shared.Message, ok bool) {
+func (queue *KafkaMessageQueue) GetMessagesBatch(ctx context.Context, size int) (messages []*shared.Message, ok bool) {
 	cancel := func() {}
 	// in func to call cancel from context
 	defer func() { cancel() }()
@@ -64,14 +64,14 @@ func (queue *KafkaMessageQueue) GetMessagesBatch(ctx context.Context, size int) 
 		var msg *shared.Message
 		msg, ok = deserializeMsg(kMsg)
 		if ok {
-			messages = append(messages, *msg)
+			messages = append(messages, msg)
 
 			// after first message use timeout, to not block already read messages
 			if i == 0 {
 				ctx, cancel = context.WithTimeout(ctx, 1*time.Second)
 			}
 		} else {
-			queue.AddMessageValueToRetry(kMsg.Value)
+			queue.AddMessagesValueToRetry([][]byte{kMsg.Value})
 		}
 
 	}
@@ -104,19 +104,29 @@ func (queue *KafkaMessageQueue) CommitMessagesBatch(ctx context.Context) bool {
 	return true
 }
 
-func (queue *KafkaMessageQueue) AddMessageToRetry(msg *shared.Message) bool {
-	if value, ok := serializeMessage(msg); ok {
-		return queue.AddMessageValueToRetry(value)
-	} else {
-		return false
+func (queue *KafkaMessageQueue) AddMessagesToRetry(messages []*shared.Message) bool {
+	if len(messages) == 0 {
+		return true
 	}
+	values := make([][]byte, len(messages))
+	for i, message := range messages {
+		if value, ok := serializeMessage(message); ok {
+			values[i] = value
+		} else {
+			return false
+		}
+	}
+	return queue.AddMessagesValueToRetry(values)
 }
 
-func (queue *KafkaMessageQueue) AddMessageValueToRetry(value []byte) bool {
+func (queue *KafkaMessageQueue) AddMessagesValueToRetry(values [][]byte) bool {
 	queue.muMessagesToRetry.Lock()
 	defer queue.muMessagesToRetry.Unlock()
-	kMsg := kafka.Message{Value: value}
-	queue.messagesToRetry = append(queue.messagesToRetry, kMsg)
+	kMsgs := make([]kafka.Message, len(values))
+	for i, value := range values {
+		kMsgs[i] = kafka.Message{Value: value}
+	}
+	queue.messagesToRetry = append(queue.messagesToRetry, kMsgs...)
 	return true
 }
 
