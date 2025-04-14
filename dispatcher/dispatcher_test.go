@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/TohaMakarenko/FlowGate/shared"
@@ -18,6 +17,8 @@ import (
 )
 
 func TestProcess(t *testing.T) {
+	SetConfig()
+
 	const msgCount int = 10
 	waitChan := make(chan bool, 10)
 	ctx, cancelCtx := context.WithTimeout(context.Background(), 30*time.Second)
@@ -80,7 +81,7 @@ func TestProcess(t *testing.T) {
 		}
 	}
 
-	conn, ok := connectTestToClickHouse()
+	conn, ok := connectToClickHouse(ctx)
 	if !ok {
 		t.Fatal("failed connecting to clickhouse")
 	}
@@ -144,38 +145,4 @@ WHERE MessageId in {ids:Array(String)}`,
 
 	log.Printf("DB check passed")
 	return true
-}
-
-func connectTestToClickHouse() (conn driver.Conn, ok bool) {
-	conn, err := clickhouse.Open(&clickhouse.Options{
-		Addr: []string{"localhost:9000"},
-		Auth: clickhouse.Auth{
-			Database: "default",
-			Username: "default",
-			Password: "changeme",
-		},
-		Settings: clickhouse.Settings{
-			"max_execution_time": 60,
-		},
-		DialTimeout:     time.Second * 10,
-		MaxOpenConns:    10,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: time.Hour,
-	})
-
-	if err != nil {
-		log.Fatalf("Failed to connect to ClickHouse: %v", err)
-		return nil, false
-	}
-
-	// Ping to verify conn
-	ctx := context.Background()
-
-	if err := conn.Ping(ctx); err != nil {
-		log.Fatalf("Failed to connect to ClickHouse: %v", err)
-		return nil, false
-	}
-	fmt.Println("Connected to ClickHouse successfully!")
-
-	return conn, true
 }

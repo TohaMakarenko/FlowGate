@@ -6,6 +6,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/TohaMakarenko/FlowGate/shared"
+	"github.com/spf13/viper"
 	"log"
 	"time"
 )
@@ -14,11 +15,17 @@ type ClickHouseRepository struct {
 	conn driver.Conn
 }
 
-func NewClickHouseRepository() (repo *ClickHouseRepository, ok bool) {
-	conn, ok := connectToClickHouse()
+func NewClickHouseRepository(ctx context.Context) (repo *ClickHouseRepository, ok bool) {
+	conn, ok := connectToClickHouse(ctx)
 	if !ok {
 		return nil, false
 	}
+
+	if err := createTables(conn, ctx); err != nil {
+		log.Fatalf("Failed to create tables: %v", err)
+		return nil, false
+	}
+
 	repo = &ClickHouseRepository{}
 	repo.conn = conn
 	return repo, true
@@ -86,30 +93,44 @@ func (repo *ClickHouseRepository) SaveMessageResult(ctx context.Context, msgResu
 	return true
 }
 
-func connectToClickHouse() (conn driver.Conn, ok bool) {
-	conn, err := clickhouse.Open(&clickhouse.Options{
-		Addr: []string{"localhost:9000"},
+func getClickhouseOptions() (options *clickhouse.Options, ok bool) {
+	var config clickhouseConfig
+	if err := viper.UnmarshalKey("messagesStorage.config", &config); err != nil {
+		log.Printf("Failed reading clickhouse config, %v", err)
+		return nil, false
+	}
+
+	// Parse durations
+	dialTimeout, _ := time.ParseDuration(config.DialTimeout)
+	connMaxLifetime, _ := time.ParseDuration(config.ConnMaxLifetime)
+
+	return &clickhouse.Options{
+		Addr: config.Addr,
 		Auth: clickhouse.Auth{
-			Database: "default",
-			Username: "default",
-			Password: "changeme",
+			Database: config.Auth.Database,
+			Username: config.Auth.Username,
+			Password: config.Auth.Password,
 		},
-		Settings: clickhouse.Settings{
-			"max_execution_time": 60,
-		},
-		DialTimeout:     time.Second * 10,
-		MaxOpenConns:    10,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: time.Hour,
-	})
+		Settings:        config.Settings,
+		DialTimeout:     dialTimeout,
+		MaxOpenConns:    config.MaxOpenConns,
+		MaxIdleConns:    config.MaxIdleConns,
+		ConnMaxLifetime: connMaxLifetime,
+	}, true
+}
+
+func connectToClickHouse(ctx context.Context) (conn driver.Conn, ok bool) {
+	options, ok := getClickhouseOptions()
+	if !ok {
+		return nil, false
+	}
+
+	conn, err := clickhouse.Open(options)
 
 	if err != nil {
 		log.Fatalf("Failed to connect to ClickHouse: %v", err)
 		return nil, false
 	}
-
-	// Ping to verify conn
-	ctx := context.Background()
 
 	if err := conn.Ping(ctx); err != nil {
 		log.Fatalf("Failed to ping ClickHouse: %v", err)
@@ -117,14 +138,10 @@ func connectToClickHouse() (conn driver.Conn, ok bool) {
 	}
 	fmt.Println("Connected to ClickHouse successfully!")
 
-	if err = createTables(err, conn, ctx); err != nil {
-		log.Fatalf("Failed to create tables: %v", err)
-		return nil, false
-	}
 	return conn, true
 }
 
-func createTables(err error, conn driver.Conn, ctx context.Context) error {
+func createTables(conn driver.Conn, ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS messages (
 		Id String,
@@ -134,7 +151,7 @@ func createTables(err error, conn driver.Conn, ctx context.Context) error {
 		CreatedAt DateTime DEFAULT now()
 	) ENGINE = MergeTree()
 	ORDER BY (Id, EventType)`
-	err = conn.Exec(ctx, query)
+	err := conn.Exec(ctx, query)
 	if err != nil {
 		return err
 	}
@@ -150,4 +167,20 @@ func createTables(err error, conn driver.Conn, ctx context.Context) error {
 	ORDER BY (MessageId, ResultCode) `
 	err = conn.Exec(ctx, query)
 	return err
+}
+
+type clickhouseConfig struct {
+	Addr            []string       `mapstructure:"addr"`
+	Auth            clickhouseAuth `mapstructure:"auth"`
+	Settings        map[string]any `mapstructure:"settings"`
+	DialTimeout     string         `mapstructure:"dial_timeout"`
+	MaxOpenConns    int            `mapstructure:"max_open_conns"`
+	MaxIdleConns    int            `mapstructure:"max_idle_conns"`
+	ConnMaxLifetime string         `mapstructure:"conn_max_lifetime"`
+}
+
+type clickhouseAuth struct {
+	Database string `mapstructure:"database"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
 }

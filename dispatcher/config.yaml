@@ -1,0 +1,15 @@
+﻿messagesStorage:
+  type: clickHouse
+  config:
+    addr:
+      - localhost:9000
+    auth:
+      database: default
+      username: default
+      password: changeme
+    settings:
+      max_execution_time: 60
+    dial_timeout: 10s
+    max_open_conns: 10
+    max_idle_conns: 5
+    conn_max_lifetime: 1h
