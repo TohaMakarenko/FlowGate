@@ -39,7 +39,7 @@ func (repo *ClickHouseRepository) Close() {
 }
 
 func (repo *ClickHouseRepository) SaveMessages(ctx context.Context, messages []*shared.Message) bool {
-	batch, err := repo.conn.PrepareBatch(ctx, "INSERT INTO messages (Id, EventType, Body, ApiToken, CreatedAt)")
+	batch, err := repo.conn.PrepareBatch(ctx, "INSERT INTO messages (Id, EventType, Body, UserId, CreatedAt)")
 	if err != nil {
 		log.Printf("Failed prepearing messages batch for ClickHouse. %v", err)
 		return false
@@ -50,7 +50,7 @@ func (repo *ClickHouseRepository) SaveMessages(ctx context.Context, messages []*
 			msg.Id,
 			msg.EventType,
 			string(msg.Body),
-			msg.ApiToken,
+			msg.UserId,
 			msg.CreatedAt,
 		); err != nil {
 			log.Printf("Failed appending message to batch batch for ClickHouse. %v", err)
@@ -147,7 +147,7 @@ func createTables(conn driver.Conn, ctx context.Context) error {
 		Id String,
 		EventType String,
 		Body String,
-		ApiToken String,
+		UserId Int,
 		CreatedAt DateTime DEFAULT now()
 	) ENGINE = MergeTree()
 	ORDER BY (Id, EventType)`
