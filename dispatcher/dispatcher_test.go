@@ -51,7 +51,7 @@ func TestProcess(t *testing.T) {
 			Id:        strconv.Itoa(rand.Int()),
 			EventType: "foo",
 			Body:      []byte("{\"name\": \"bar\"}"),
-			ApiToken:  "kekw",
+			UserId:    1,
 			CreatedAt: time.Now(),
 		}
 		messages[i] = msg

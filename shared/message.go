@@ -6,6 +6,6 @@ type Message struct {
 	Id        string
 	EventType string
 	Body      []byte
-	ApiToken  string
+	UserId    int
 	CreatedAt time.Time
 }
